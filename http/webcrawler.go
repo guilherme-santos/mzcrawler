@@ -88,6 +88,8 @@ func (c *WebCrawler) Crawl() (mzcrawler.Sitemap, error) {
 	return c.sitemap, nil
 }
 
+// newURLFound checks if URL was visited already, case not it'll
+// add it in the list of visited URLs.
 func (c *WebCrawler) newURLFound(urlstr string) bool {
 	c.sitemapMu.Lock()
 	defer c.sitemapMu.Unlock()
@@ -200,6 +202,8 @@ func (c *WebCrawler) shouldFollow(baseurl string) bool {
 	if err != nil {
 		return false
 	}
+
+	// TODO it'll be nice check robots.txt to avoid crawl URL that shouldn't.
 
 	if !c.FollowSubDomains {
 		return strings.EqualFold(u.Host, c.domain)
