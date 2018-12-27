@@ -57,7 +57,7 @@ func TestNormalizeURL(t *testing.T) {
 		{URL: "http://monzo.com/blog", Normalized: "http://monzo.com/blog"},
 	}
 
-	c, err := NewWebCrawler("https://monzo.com")
+	c, err := NewWebCrawler("https://monzo.com", 1)
 	noError(t, err)
 
 	for _, tc := range testcases {
@@ -79,7 +79,7 @@ func TestNormalizeURL_WithPath(t *testing.T) {
 		{URL: "http://monzo.com/blog", Normalized: "http://monzo.com/blog"},
 	}
 
-	c, err := NewWebCrawler("https://monzo.com/path")
+	c, err := NewWebCrawler("https://monzo.com/path", 1)
 	noError(t, err)
 
 	for _, tc := range testcases {
@@ -103,7 +103,7 @@ func TestShouldFollow(t *testing.T) {
 		{URL: "https://blog.monzo.com/article", FollowSubDomains: true, ShouldFollow: true},
 	}
 
-	c, err := NewWebCrawler("https://monzo.com")
+	c, err := NewWebCrawler("https://monzo.com", 1)
 	noError(t, err)
 
 	for _, tc := range testcases {
@@ -123,7 +123,7 @@ func TestCrawlURL_ExtractAllHref(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c, err := NewWebCrawler(ts.URL)
+	c, err := NewWebCrawler(ts.URL, 5)
 	noError(t, err)
 
 	urlCh, err := c.crawlURL(ts.URL)
@@ -148,7 +148,7 @@ func TestCrawler(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c, err := NewWebCrawler(ts.URL)
+	c, err := NewWebCrawler(ts.URL, 5)
 	noError(t, err)
 
 	sitemap, err := c.Crawl()

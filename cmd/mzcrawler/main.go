@@ -9,9 +9,12 @@ import (
 	"github.com/guilherme-santos/mzcrawler/http"
 )
 
+var defaultConcurrenctClients uint = 5
+
 var (
 	followSubDomains = flag.Bool("subdomains", false, "sets if should follow subdomains")
 	verbose          = flag.Bool("v", false, "log the crawler progress")
+	concurrent       = flag.Uint("n", defaultConcurrenctClients, "number of concurrent http calls")
 )
 
 func main() {
@@ -29,7 +32,7 @@ func main() {
 
 	baseurl := flag.Arg(0)
 
-	c, err := http.NewWebCrawler(baseurl)
+	c, err := http.NewWebCrawler(baseurl, *concurrent)
 	if err != nil {
 		fmt.Printf("Unable to create a crawler to %s: %s\n", baseurl, err)
 		os.Exit(1)

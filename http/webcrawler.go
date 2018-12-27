@@ -24,6 +24,7 @@ type WebCrawler struct {
 	domain           string
 	sitemap          mzcrawler.Sitemap
 	sitemapMu        sync.Mutex
+	semaphore        chan struct{}
 	Logger           *log.Logger
 	HTTPClient       *http.Client
 	Verbose          bool
@@ -31,21 +32,23 @@ type WebCrawler struct {
 }
 
 // NewWebCrawler creates new instance of http.WebCrawler.
-func NewWebCrawler(baseurl string) (*WebCrawler, error) {
+func NewWebCrawler(baseurl string, concurrent uint) (*WebCrawler, error) {
 	u, err := url.Parse(baseurl)
 	if err != nil {
 		return nil, err
 	}
 
 	return &WebCrawler{
-		urlstr:  baseurl,
-		url:     u,
-		domain:  domain(u),
-		sitemap: make(mzcrawler.Sitemap),
-		Logger:  log.New(os.Stdout, "http.webcrawler: ", 0),
+		urlstr:    baseurl,
+		url:       u,
+		domain:    domain(u),
+		sitemap:   make(mzcrawler.Sitemap),
+		semaphore: make(chan struct{}, concurrent),
+		Logger:    log.New(os.Stdout, "http.webcrawler: ", 0),
 		HTTPClient: &http.Client{
 			Timeout: ClientTimeout,
 		},
+		Verbose:          false,
 		FollowSubDomains: true,
 	}, nil
 }
@@ -130,10 +133,6 @@ func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string) error {
 
 		wg.Add(1)
 		go func() {
-			// TODO: For each new URL found that should follow we're creating
-			// a new Goroutine to access it in concurrent, but this can cause
-			// overload in the server being crawled, we should limit the number
-			// of concurrent request to the server.
 			defer wg.Done()
 			c.worker(wg, urlstr)
 		}()
@@ -157,6 +156,14 @@ func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string) error {
 // crawlURL calls baseurl and return an channel that will be send all
 // urls founds in the baseurl.
 func (c *WebCrawler) crawlURL(baseurl string) (chan string, error) {
+	// try to acquire one spot. it'll block until
+	// at least one spot is available.
+	c.semaphore <- struct{}{}
+	defer func() {
+		// When finish the http call release the stop occupied.
+		<-c.semaphore
+	}()
+
 	c.log("crawling...", logRecord{"url": baseurl})
 
 	urlCh := make(chan string)
