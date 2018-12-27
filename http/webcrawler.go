@@ -124,6 +124,7 @@ func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string) error {
 		}
 
 		if !c.shouldFollow(urlstr) {
+			c.log("url shouldn't be followed", logRecord{"url": urlstr})
 			continue
 		}
 
