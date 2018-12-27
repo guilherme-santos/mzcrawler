@@ -139,11 +139,12 @@ func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string) error {
 	}
 
 	// create sitemap to urlstr and save it.
-	sitemap := func() (res []string) {
+	sitemap := func() []string {
+		res := make([]string, 0, len(urls))
 		for u := range urls {
 			res = append(res, u)
 		}
-		return
+		return res
 	}()
 
 	c.sitemapMu.Lock()
