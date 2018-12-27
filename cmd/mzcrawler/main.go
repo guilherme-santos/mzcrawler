@@ -9,7 +9,10 @@ import (
 	"github.com/guilherme-santos/mzcrawler/http"
 )
 
-var followSubDomains = flag.Bool("subdomains", false, "sets if should follow subdomains")
+var (
+	followSubDomains = flag.Bool("subdomains", false, "sets if should follow subdomains")
+	verbose          = flag.Bool("v", false, "log the crawler progress")
+)
 
 func main() {
 	flag.Usage = func() {
@@ -31,6 +34,7 @@ func main() {
 		fmt.Printf("Unable to create a crawler to %s: %s\n", baseurl, err)
 		os.Exit(1)
 	}
+	c.Verbose = *verbose
 	c.FollowSubDomains = *followSubDomains
 
 	sitemap, err := c.Crawl()

@@ -18,6 +18,8 @@ If you already have the binaries in your machine you can execute it passing the 
 
 * By default subdomains (e.g. https://web.monzo.com) are not followed, you need to explicit pass `-subdomains` flag to be able to follow them.
 
+You also can pass `-v` flag to show all URLs visited and also the ones ignored.
+
 ## Testing
 
 You can run unit tests using the following command.
