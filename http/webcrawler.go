@@ -1,8 +1,11 @@
 package http
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +24,9 @@ type WebCrawler struct {
 	domain           string
 	sitemap          mzcrawler.Sitemap
 	sitemapMu        sync.Mutex
+	Logger           *log.Logger
 	HTTPClient       *http.Client
+	Verbose          bool
 	FollowSubDomains bool
 }
 
@@ -37,11 +42,36 @@ func NewWebCrawler(baseurl string) (*WebCrawler, error) {
 		url:     u,
 		domain:  domain(u),
 		sitemap: make(mzcrawler.Sitemap),
+		Logger:  log.New(os.Stdout, "http.webcrawler: ", 0),
 		HTTPClient: &http.Client{
 			Timeout: ClientTimeout,
 		},
 		FollowSubDomains: true,
 	}, nil
+}
+
+type logRecord map[string]interface{}
+
+func (c *WebCrawler) log(msg string, data logRecord) {
+	if c.Verbose {
+		var buf bytes.Buffer
+		buf.WriteString("timestamp=")
+		buf.WriteString(time.Now().UTC().String())
+		buf.WriteString(" msg=")
+		buf.WriteString(msg)
+
+		for k, v := range data {
+			buf.WriteString(" ")
+			buf.WriteString(k)
+			buf.WriteString("=")
+			switch v.(type) {
+			case string:
+				buf.WriteString(v.(string))
+			}
+		}
+
+		c.Logger.Println(buf.String())
+	}
 }
 
 func (c *WebCrawler) Crawl() (mzcrawler.Sitemap, error) {
@@ -110,14 +140,18 @@ func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string, urlCh chan string
 	c.sitemapMu.Lock()
 	c.sitemap[urlstr] = sitemap
 	c.sitemapMu.Unlock()
+
+	return nil
 }
 
 // crawlURL calls baseurl and return an channel that will be send all
 // urls founds in the baseurl.
-func (c *WebCrawler) crawlURL(baseurl *url.URL) (chan string, error) {
+func (c *WebCrawler) crawlURL(baseurl string) (chan string, error) {
+	c.log("crawling...", logRecord{"url": baseurl})
+
 	urlCh := make(chan string)
 
-	resp, err := c.HTTPClient.Get(baseurl.String())
+	resp, err := c.HTTPClient.Get(baseurl)
 	if err != nil {
 		close(urlCh)
 		return nil, err
