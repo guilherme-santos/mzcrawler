@@ -57,7 +57,29 @@ func TestNormalizeURL(t *testing.T) {
 		{URL: "http://monzo.com/blog", Normalized: "http://monzo.com/blog"},
 	}
 
-	c, err := NewWebCrawler("https://monzo.com/path?query=param#fragment")
+	c, err := NewWebCrawler("https://monzo.com")
+	noError(t, err)
+
+	for _, tc := range testcases {
+		if !assert(t, tc.Normalized, c.normalizeURL(tc.URL)) {
+			t.Logf("URL %s", tc.URL)
+		}
+	}
+}
+
+func TestNormalizeURL_WithPath(t *testing.T) {
+	testcases := []struct {
+		URL        string
+		Normalized string
+	}{
+		{URL: "/", Normalized: "https://monzo.com/path"},
+		{URL: "/blog", Normalized: "https://monzo.com/path/blog"},
+		{URL: "../blog", Normalized: "https://monzo.com/path/../blog"},
+		{URL: "//secure.monzo.com/blog", Normalized: "https://secure.monzo.com/blog"},
+		{URL: "http://monzo.com/blog", Normalized: "http://monzo.com/blog"},
+	}
+
+	c, err := NewWebCrawler("https://monzo.com/path")
 	noError(t, err)
 
 	for _, tc := range testcases {
@@ -104,8 +126,7 @@ func TestCrawlURL_ExtractAllHref(t *testing.T) {
 	c, err := NewWebCrawler(ts.URL)
 	noError(t, err)
 
-	u, _ := url.Parse(ts.URL)
-	urlCh, err := c.crawlURL(u)
+	urlCh, err := c.crawlURL(ts.URL)
 	noError(t, err)
 
 	var total int
@@ -119,7 +140,7 @@ func TestCrawler(t *testing.T) {
 	var ts *httptest.Server
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch req.RequestURI {
-		case "/", "/about", "contact":
+		case "/", "/about", "/contact":
 			fmt.Fprintf(w, `<a href="/"><a href="/about"><a href="%s/contact"><a href="https://fb.com/company">`, ts.URL)
 		default:
 			t.Errorf("%s is not an expected", req.RequestURI)

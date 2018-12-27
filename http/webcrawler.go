@@ -75,15 +75,14 @@ func (c *WebCrawler) log(msg string, data logRecord) {
 }
 
 func (c *WebCrawler) Crawl() (mzcrawler.Sitemap, error) {
-	urlCh, err := c.crawlURL(c.url)
+	var wg sync.WaitGroup
+
+	err := c.worker(&wg, c.urlstr)
 	if err != nil {
 		return nil, err
 	}
 
-	var wg sync.WaitGroup
-	c.worker(&wg, c.urlstr, urlCh)
-
-	// Wait all gourotines workers spawn finish.
+	// Wait read from all crawled URL to return.
 	wg.Wait()
 	return c.sitemap, nil
 }
@@ -102,33 +101,41 @@ func (c *WebCrawler) newURLFound(urlstr string) bool {
 	return true
 }
 
-func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string, urlCh chan string) {
+func (c *WebCrawler) worker(wg *sync.WaitGroup, urlstr string) error {
 	if !c.newURLFound(urlstr) {
-		return
+		c.log("url visited already, ignoring...", logRecord{"url": urlstr})
+		return nil
 	}
 
+	// crawl urlstr
+	urlCh, err := c.crawlURL(urlstr)
+	if err != nil {
+		return err
+	}
+
+	// urls it's a set of URL (avoiding duplicated).
 	urls := make(map[string]struct{})
 
 	for u := range urlCh {
-		u := c.normalizeURL(u)
+		urlstr := c.normalizeURL(u)
 
-		if _, ok := urls[u]; !ok {
-			urls[u] = struct{}{}
+		if _, ok := urls[urlstr]; !ok {
+			urls[urlstr] = struct{}{}
 		}
 
-		if !c.shouldFollow(u) {
+		if !c.shouldFollow(urlstr) {
 			continue
 		}
 
 		wg.Add(1)
-		go func(u string) {
+		go func() {
+			// TODO: For each new URL found that should follow we're creating
+			// a new Goroutine to access it in concurrent, but this can cause
+			// overload in the server being crawled, we should limit the number
+			// of concurrent request to the server.
 			defer wg.Done()
-
-			urlCh, err := c.crawlURL(c.url)
-			if err == nil {
-				c.worker(wg, u, urlCh)
-			}
-		}(u)
+			c.worker(wg, urlstr)
+		}()
 	}
 
 	// create sitemap to urlstr and save it.
@@ -212,32 +219,27 @@ func (c *WebCrawler) shouldFollow(baseurl string) bool {
 	return strings.HasSuffix(u.Host, c.domain)
 }
 
-func (c *WebCrawler) normalizeURL(u string) string {
-	u = strings.TrimSuffix(u, "/")
+func (c *WebCrawler) normalizeURL(urlstr string) string {
+	urlstr = strings.TrimSuffix(urlstr, "/")
+	if urlstr == "" {
+		return c.urlstr
+	}
 
-	if u == "" {
+	if strings.HasPrefix(urlstr, "//") {
+		return c.url.Scheme + ":" + urlstr
+	}
+
+	if isReletivePath(urlstr) {
 		newurl := new(url.URL)
 		*newurl = *c.url
-		newurl.Path = ""
-		newurl.RawQuery = ""
-		newurl.Fragment = ""
+		if !strings.HasPrefix(urlstr, "/") {
+			newurl.Path += "/"
+		}
+		newurl.Path += urlstr
 		return newurl.String()
 	}
 
-	if strings.HasPrefix(u, "//") {
-		return c.url.Scheme + ":" + u
-	}
-
-	if isReletivePath(u) {
-		newurl := new(url.URL)
-		*newurl = *c.url
-		newurl.Path = u
-		newurl.RawQuery = ""
-		newurl.Fragment = ""
-		return newurl.String()
-	}
-
-	return u
+	return urlstr
 }
 
 func isReletivePath(path string) bool {
