@@ -4,7 +4,7 @@
 
 To build the webcrawler you need to have [Go](https://golang.org/doc/install) instaled in your machine, you can check it typing `go version`.
 
-Once you have Go installed in working you can type following command to build the app.
+Once you have Go installed and working you can type the following command to build the app.
 ```
 go build -o mzcrawler cmd/mzcrawler/main.go
 ```
@@ -21,14 +21,14 @@ If you already have the binaries in your machine you can execute it passing the 
 
 You also can check the crawling progress passing `-v` flag.
 
-A full example could be:
+A full example would be:
 ```
 ./mzcrawler -v -n 10 -subdomains https://monzo.com
 ```
 
 ## Testing
 
-You can run unit tests using the following command.
+You can run the unit tests using the following command.
 ```
 go test -v ./...
 ```
